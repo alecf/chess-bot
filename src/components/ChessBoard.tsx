@@ -54,21 +54,11 @@ export default function ChessBoard({
     async (fen: string) => {
       if (new Chess(fen).isGameOver()) return;
 
-      console.log("=== AI MOVE WITH FEN START ===");
-      console.log("FEN provided to AI move:", fen);
-      console.log("Current turn from FEN:", new Chess(fen).turn());
-      console.log("Player color:", playerColor);
-      console.log(
-        "AI should play as:",
-        new Chess(fen).turn() === "w" ? "white" : "black",
-      );
-
       setGameStatus("AI is thinking...");
       setIsLoading(true);
       setIsAITurn(true);
 
       try {
-        setGameStatus("Making request to backend...");
         const response = await fetch("/api/move", {
           method: "POST",
           headers: {
@@ -84,21 +74,12 @@ export default function ChessBoard({
           throw new Error("Failed to get AI move");
         }
 
-        setGameStatus("Received response from backend, applying move...");
         const data = await response.json();
         const move = data.move;
-
-        console.log("AI move received:", move);
-        console.log("AI move data:", data);
 
         // Make the AI move and update URL immediately
         const newChess = new Chess(fen);
         const result = newChess.move(move);
-
-        console.log("AI move result:", result);
-        console.log("New FEN after AI move:", newChess.fen());
-        console.log("New turn after AI move:", newChess.turn());
-        console.log("=== AI MOVE WITH FEN END ===");
 
         // Update URL with new game state - this is now the source of truth
         onGameStateUpdate(newChess.fen());
@@ -135,36 +116,15 @@ export default function ChessBoard({
     }
   }, [playerColor, chessTurn, gameState, chessFen, makeAIMoveWithFEN]);
 
-  // Debug logging for state changes
-  useEffect(() => {
-    console.log("Chess state changed:", {
-      fen: chessFen,
-      turn: chessTurn,
-      playerColor,
-      gameStatus,
-      isAITurn,
-      isLoading,
-    });
-  }, [chessFen, chessTurn, playerColor, gameStatus, isAITurn, isLoading]);
-
   const handleSquareClick = useCallback(
     (square: string) => {
       if (isLoading || isAITurn) return;
 
-      console.log("=== SQUARE CLICK ===");
-      console.log("Square clicked:", square);
-      console.log("Current turn:", chessTurn);
-      console.log("Player color:", playerColor);
-      console.log("Is player's turn:", chessTurn === playerColor);
-
       // Check if it's the player's turn
       if (chessTurn !== playerColor) {
-        console.log("NOT PLAYER'S TURN - blocking move");
         setGameStatus("Not your turn! Wait for AI to move.");
         return;
       }
-
-      console.log("PLAYER'S TURN - allowing move");
 
       const squarePiece = chess.get(square as Square) || null;
       const isPlayerPiece = squarePiece && squarePiece.color === playerColor;
@@ -195,20 +155,11 @@ export default function ChessBoard({
 
         try {
           setGameStatus("Making your move...");
-          console.log("=== PLAYER MOVE START ===");
-          console.log("Current FEN before player move:", chessFen);
-          console.log("Current turn before player move:", chessTurn);
-          console.log("Player color:", playerColor);
 
           const newChess = new Chess(chessFen);
           const result = newChess.move(move);
 
           if (result) {
-            console.log("Player move result:", result);
-            console.log("New FEN after player move:", newChess.fen());
-            console.log("New turn after player move:", newChess.turn());
-            console.log("=== PLAYER MOVE END ===");
-
             setSelectedSquare(null);
 
             setGameStatus("Your move completed. AI is thinking...");
