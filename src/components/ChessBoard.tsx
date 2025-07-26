@@ -61,7 +61,7 @@ export default function ChessBoard({
       // Check if this is the initial position (no moves made yet)
       if (isInitialPosition(gameState)) {
         setGameStatus("AI goes first. Starting AI move...");
-        makeAIMove();
+        makeAIMoveWithFEN(chess.fen());
       }
     }
   }, [playerColor, chess, gameState]);
@@ -78,8 +78,17 @@ export default function ChessBoard({
     });
   }, [chess.fen(), chess.turn(), playerColor, gameStatus, isAITurn, isLoading]);
 
-  const makeAIMove = async () => {
-    if (chess.isGameOver()) return;
+  const makeAIMoveWithFEN = async (fen: string) => {
+    if (new Chess(fen).isGameOver()) return;
+
+    console.log("=== AI MOVE WITH FEN START ===");
+    console.log("FEN provided to AI move:", fen);
+    console.log("Current turn from FEN:", new Chess(fen).turn());
+    console.log("Player color:", playerColor);
+    console.log(
+      "AI should play as:",
+      new Chess(fen).turn() === "w" ? "white" : "black",
+    );
 
     setGameStatus("AI is thinking...");
     setIsLoading(true);
@@ -93,7 +102,7 @@ export default function ChessBoard({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fen: chess.fen(),
+          fen: fen,
           seed: seed,
         }),
       });
@@ -106,12 +115,19 @@ export default function ChessBoard({
       const data = await response.json();
       const move = data.move;
 
+      console.log("AI move received:", move);
+      console.log("AI move data:", data);
+
       // Make the AI move and update URL immediately
-      const newChess = new Chess(chess.fen());
+      const newChess = new Chess(fen);
       const result = newChess.move(move);
 
+      console.log("AI move result:", result);
+      console.log("New FEN after AI move:", newChess.fen());
+      console.log("New turn after AI move:", newChess.turn());
+      console.log("=== AI MOVE WITH FEN END ===");
+
       // Update URL with new game state - this is now the source of truth
-      // The chess instance will be recreated from the URL on the next render
       onGameStateUpdate(newChess.fen());
 
       setGameStatus("AI move completed. Your turn!");
@@ -127,11 +143,20 @@ export default function ChessBoard({
   const handleSquareClick = (square: string) => {
     if (isLoading || isAITurn) return;
 
+    console.log("=== SQUARE CLICK ===");
+    console.log("Square clicked:", square);
+    console.log("Current turn:", chess.turn());
+    console.log("Player color:", playerColor);
+    console.log("Is player's turn:", chess.turn() === playerColor);
+
     // Check if it's the player's turn
     if (chess.turn() !== playerColor) {
+      console.log("NOT PLAYER'S TURN - blocking move");
       setGameStatus("Not your turn! Wait for AI to move.");
       return;
     }
+
+    console.log("PLAYER'S TURN - allowing move");
 
     const squarePiece = chess.get(square as Square) || null;
     const isPlayerPiece = squarePiece && squarePiece.color === playerColor;
@@ -162,10 +187,20 @@ export default function ChessBoard({
 
       try {
         setGameStatus("Making your move...");
+        console.log("=== PLAYER MOVE START ===");
+        console.log("Current FEN before player move:", chess.fen());
+        console.log("Current turn before player move:", chess.turn());
+        console.log("Player color:", playerColor);
+
         const newChess = new Chess(chess.fen());
         const result = newChess.move(move);
 
         if (result) {
+          console.log("Player move result:", result);
+          console.log("New FEN after player move:", newChess.fen());
+          console.log("New turn after player move:", newChess.turn());
+          console.log("=== PLAYER MOVE END ===");
+
           setSelectedSquare(null);
 
           setGameStatus("Your move completed. AI is thinking...");
@@ -175,7 +210,8 @@ export default function ChessBoard({
 
           // If game is not over, it's AI's turn
           if (!newChess.isGameOver()) {
-            setTimeout(() => makeAIMove(), 500); // Small delay for better UX
+            // Use the new FEN directly instead of relying on the chess instance
+            setTimeout(() => makeAIMoveWithFEN(newChess.fen()), 500);
           } else {
             setGameStatus("Game over!");
           }
