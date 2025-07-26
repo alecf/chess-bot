@@ -2,6 +2,7 @@
 
 import { isInitialPosition } from "@/utils/boardState";
 import { Chess, Square } from "chess.js";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ChessSquare from "./ChessSquare";
 
@@ -18,6 +19,7 @@ export default function ChessBoard({
   gameState,
   onGameStateUpdate,
 }: ChessBoardProps) {
+  const router = useRouter();
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [isAITurn, setIsAITurn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -201,9 +203,12 @@ export default function ChessBoard({
 
   const isLegalMove = useCallback(
     (square: string) => {
-      return legalMoves.some((move) => move.to === square);
+      if (!selectedSquare) return false;
+      return legalMoves.some(
+        (move) => move.from === selectedSquare && move.to === square,
+      );
     },
-    [legalMoves],
+    [legalMoves, selectedSquare],
   );
 
   const getSquareColor = useCallback((file: number, rank: number) => {
@@ -257,6 +262,17 @@ export default function ChessBoard({
     return gameStatus; // Use our detailed status instead
   }, [chess, gameStatus]);
 
+  const handleGoHome = useCallback(() => {
+    router.push("/");
+  }, [router]);
+
+  const handleResetGame = useCallback(() => {
+    // Generate a new random seed
+    const newSeed = Math.random().toString(36).substring(2, 15);
+    // Navigate to a new game with the new seed
+    router.push(`/game/${newSeed}`);
+  }, [router]);
+
   return (
     <div className="flex flex-col items-center">
       <div className="mb-4 text-center">
@@ -280,6 +296,21 @@ export default function ChessBoard({
       </div>
 
       <div className="mt-4 text-sm text-gray-600">{chessFen}</div>
+
+      <div className="mt-6 flex gap-4">
+        <button
+          onClick={handleGoHome}
+          className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+        >
+          Back to Home
+        </button>
+        <button
+          onClick={handleResetGame}
+          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+        >
+          New Game
+        </button>
+      </div>
     </div>
   );
 }
