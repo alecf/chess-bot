@@ -50,38 +50,6 @@ export default function ChessBoard({
     return chess.moves({ verbose: true });
   }, [chess]);
 
-  // Initialize game status when chess instance changes
-  useEffect(() => {
-    if (chessTurn === playerColor) {
-      setGameStatus("Your turn! Select a piece to move.");
-    } else {
-      setGameStatus("AI's turn. Please wait...");
-    }
-  }, [chessTurn, playerColor]);
-
-  // Handle AI going first (when player chooses black)
-  useEffect(() => {
-    if (playerColor === "b" && chessTurn === "w" && gameState) {
-      // Check if this is the initial position (no moves made yet)
-      if (isInitialPosition(gameState)) {
-        setGameStatus("AI goes first. Starting AI move...");
-        makeAIMoveWithFEN(chessFen);
-      }
-    }
-  }, [playerColor, chessTurn, gameState, chessFen]);
-
-  // Debug logging for state changes
-  useEffect(() => {
-    console.log("Chess state changed:", {
-      fen: chessFen,
-      turn: chessTurn,
-      playerColor,
-      gameStatus,
-      isAITurn,
-      isLoading,
-    });
-  }, [chessFen, chessTurn, playerColor, gameStatus, isAITurn, isLoading]);
-
   const makeAIMoveWithFEN = useCallback(
     async (fen: string) => {
       if (new Chess(fen).isGameOver()) return;
@@ -146,6 +114,38 @@ export default function ChessBoard({
     },
     [seed, playerColor, onGameStateUpdate],
   );
+
+  // Initialize game status when chess instance changes
+  useEffect(() => {
+    if (chessTurn === playerColor) {
+      setGameStatus("Your turn! Select a piece to move.");
+    } else {
+      setGameStatus("AI's turn. Please wait...");
+    }
+  }, [chessTurn, playerColor]);
+
+  // Handle AI going first (when player chooses black)
+  useEffect(() => {
+    if (playerColor === "b" && chessTurn === "w" && gameState) {
+      // Check if this is the initial position (no moves made yet)
+      if (isInitialPosition(gameState)) {
+        setGameStatus("AI goes first. Starting AI move...");
+        makeAIMoveWithFEN(chessFen);
+      }
+    }
+  }, [playerColor, chessTurn, gameState, chessFen, makeAIMoveWithFEN]);
+
+  // Debug logging for state changes
+  useEffect(() => {
+    console.log("Chess state changed:", {
+      fen: chessFen,
+      turn: chessTurn,
+      playerColor,
+      gameStatus,
+      isAITurn,
+      isLoading,
+    });
+  }, [chessFen, chessTurn, playerColor, gameStatus, isAITurn, isLoading]);
 
   const handleSquareClick = useCallback(
     (square: string) => {
