@@ -1,108 +1,112 @@
 # Chess Bot
 
-A chess-playing application with a Next.js frontend and Python backend. The frontend maintains the game state while the backend provides move generation through a REST API.
+A chess game with AI opponent built with Next.js frontend and FastAPI backend.
 
-## Architecture
+## Features
 
-- **Frontend**: Next.js with TypeScript and Tailwind CSS
-- **Backend**: FastAPI Python server with chess move generation
-- **Future AI**: Neural network trained with Gymnasium and PyTorch
+- **Interactive Chess Board**: Play chess against an AI opponent
+- **Color Selection**: Choose to play as white or black pieces
+- **URL State Management**: Game state is preserved in the URL for sharing and navigation
+- **Real-time AI Moves**: AI responds to your moves using a neural network backend
+- **Legal Move Validation**: Only legal chess moves are allowed
+- **Visual Feedback**: Selected pieces and legal moves are highlighted
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- Python 3.8+
+- uv (Python package manager)
+
+### Installation
+
+1. Clone the repository:
+
+```bash
+git clone <repository-url>
+cd chess-bot
+```
+
+2. Install frontend dependencies:
+
+```bash
+npm install
+```
+
+3. Install backend dependencies:
+
+```bash
+cd backend
+uv sync
+cd ..
+```
+
+### Running the Application
+
+1. Start the backend server:
+
+```bash
+npm run backend:dev
+```
+
+2. In a new terminal, start the frontend:
+
+```bash
+npm run dev
+```
+
+3. Open your browser and navigate to `http://localhost:3000`
+
+## How to Play
+
+1. **Start a Game**: Click the "Start Game" button on the homepage
+2. **Choose Your Color**: Select whether you want to play as white or black
+   - White goes first
+   - Black allows the AI to make the first move
+3. **Make Moves**:
+   - Click on one of your pieces to select it
+   - Click on a legal destination square to move
+   - Click on the same piece again to deselect it
+   - Click on another of your pieces to select a different piece
+4. **Game State**: The URL updates with each move, allowing you to share game positions
 
 ## Project Structure
 
 ```
 chess-bot/
-├── src/                    # Next.js frontend
-│   └── app/               # App router pages
-├── backend/               # Python FastAPI server
-│   ├── main.py           # API server
-│   ├── pyproject.toml    # Python dependencies
-│   └── README.md         # Backend documentation
-├── package.json          # Frontend dependencies
-└── README.md            # This file
+├── src/
+│   ├── app/
+│   │   ├── api/move/          # API route for AI moves
+│   │   ├── game/[seed]/       # Dynamic game routes
+│   │   └── page.tsx           # Homepage
+│   └── components/
+│       ├── ChessBoard.tsx     # Main chess game component
+│       ├── ChessSquare.tsx    # Individual square component
+│       └── ColorSelection.tsx # Color selection UI
+├── backend/
+│   └── main.py               # FastAPI backend with AI
+└── package.json
 ```
-
-## Quick Start
-
-### Frontend (Next.js)
-
-1. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-2. Start the development server:
-
-   ```bash
-   npm run dev
-   ```
-
-3. Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-### Backend (Python)
-
-1. Navigate to the backend directory:
-
-   ```bash
-   cd backend
-   ```
-
-2. Install uv (if not already installed):
-
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
-
-3. Install dependencies:
-
-   ```bash
-   uv sync
-   ```
-
-4. Start the API server:
-
-   ```bash
-   uv run python main.py
-   ```
-
-5. The API will be available at [http://localhost:8000](http://localhost:8000)
-
-### Development Scripts
-
-For convenience, you can use these npm scripts:
-
-- `npm run dev:full` - Start both frontend and backend servers
-- `npm run backend` - Start only the backend server
-- `npm run backend:dev` - Start backend with auto-reload
-
-## API Documentation
-
-Once the backend is running, view the interactive API documentation:
-
-- Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
-- ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
-
-## Current Features
-
-- **Frontend**: Welcome page with project overview
-- **Backend**:
-  - Random move generation (placeholder for AI)
-  - FEN-based board state input
-  - Legal move validation
-  - UCI and SAN move notation support
-
-## Future Development
-
-- [ ] Chess board UI component
-- [ ] Game state management in frontend
-- [ ] Neural network integration for move generation
-- [ ] Training pipeline with Gymnasium and PyTorch
-- [ ] Move history and game replay
-- [ ] Multiple AI difficulty levels
 
 ## Technologies Used
 
-- **Frontend**: Next.js, React, TypeScript, Tailwind CSS
-- **Backend**: FastAPI, Python, python-chess
-- **Package Management**: npm (frontend), uv (backend)
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
+- **Chess Logic**: chess.js library
+- **Icons**: Lucide React
+- **Backend**: FastAPI, Python
+- **AI**: Neural network with PyTorch
+
+## API Endpoints
+
+- `POST /api/move`: Sends game state to backend AI and returns the AI's move
+  - Request body: `{ fen: string, seed: string }`
+  - Response: `{ move: string }`
+
+## Development
+
+- `npm run dev`: Start frontend development server
+- `npm run backend:dev`: Start backend development server
+- `npm run dev:full`: Start both frontend and backend
+- `npm run build`: Build for production
+- `npm run lint`: Run ESLint

@@ -1,4 +1,16 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+
 export default function Home() {
+  const router = useRouter();
+
+  const startGame = () => {
+    // Generate a random seed for the game
+    const seed = Math.random().toString(36).substring(2, 15);
+    router.push(`/game/${seed}`);
+  };
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
@@ -54,6 +66,15 @@ export default function Home() {
             Neural network trained with Gymnasium and PyTorch
           </p>
         </div>
+      </div>
+
+      <div className="mt-8">
+        <button
+          onClick={startGame}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg text-xl transition-colors duration-200 shadow-lg hover:shadow-xl"
+        >
+          Start Game
+        </button>
       </div>
     </main>
   );
