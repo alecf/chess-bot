@@ -43,7 +43,7 @@ export default function ChessSquare({
 
   const getPieceColor = () => {
     if (!piece) return "";
-    return piece.color === "w" ? "text-gray-800" : "text-gray-200";
+    return piece.color === "w" ? "text-gray-800" : "text-black";
   };
 
   return (

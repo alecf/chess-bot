@@ -24,6 +24,9 @@ export default function ChessBoard({
   const [gameStatus, setGameStatus] = useState<string>(
     "Waiting for game to start...",
   );
+  const [invalidMoveMessage, setInvalidMoveMessage] = useState<string | null>(
+    null,
+  );
 
   // Create chess instance from URL state using useMemo
   const chess = useMemo(() => {
@@ -177,7 +180,9 @@ export default function ChessBoard({
           }
         } catch (error) {
           console.error("Invalid move:", error);
-          setGameStatus("Invalid move! Try again.");
+          setInvalidMoveMessage("Invalid move! Please try a different move.");
+          // Clear the invalid move message after 3 seconds
+          setTimeout(() => setInvalidMoveMessage(null), 3000);
         }
       }
     },
@@ -258,6 +263,11 @@ export default function ChessBoard({
         <div className="text-xl font-semibold mb-2">{getGameStatus()}</div>
         {isLoading && (
           <div className="text-sm text-gray-600">Processing...</div>
+        )}
+        {invalidMoveMessage && (
+          <div className="text-sm text-red-600 font-medium mt-2 bg-red-50 px-4 py-2 rounded-md border border-red-200">
+            {invalidMoveMessage}
+          </div>
         )}
         <div className="text-sm text-gray-500 mt-1">
           Current turn: {chessTurn === "w" ? "White" : "Black"} | Player color:{" "}
