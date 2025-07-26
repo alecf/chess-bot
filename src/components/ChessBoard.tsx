@@ -2,7 +2,7 @@
 
 import { isInitialPosition } from "@/utils/boardState";
 import { Chess, Square } from "chess.js";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ChessSquare from "./ChessSquare";
 
 interface ChessBoardProps {
@@ -41,6 +41,10 @@ export default function ChessBoard({
     }
   }, [gameState]);
 
+  // Memoize chess properties to prevent infinite re-renders
+  const chessTurn = useMemo(() => chess.turn(), [chess]);
+  const chessFen = useMemo(() => chess.fen(), [chess]);
+
   // Calculate legal moves using useMemo
   const legalMoves = useMemo(() => {
     return chess.moves({ verbose: true });
@@ -48,196 +52,218 @@ export default function ChessBoard({
 
   // Initialize game status when chess instance changes
   useEffect(() => {
-    if (chess.turn() === playerColor) {
+    if (chessTurn === playerColor) {
       setGameStatus("Your turn! Select a piece to move.");
     } else {
       setGameStatus("AI's turn. Please wait...");
     }
-  }, [chess, playerColor]);
+  }, [chessTurn, playerColor]);
 
   // Handle AI going first (when player chooses black)
   useEffect(() => {
-    if (playerColor === "b" && chess.turn() === "w" && gameState) {
+    if (playerColor === "b" && chessTurn === "w" && gameState) {
       // Check if this is the initial position (no moves made yet)
       if (isInitialPosition(gameState)) {
         setGameStatus("AI goes first. Starting AI move...");
-        makeAIMoveWithFEN(chess.fen());
+        makeAIMoveWithFEN(chessFen);
       }
     }
-  }, [playerColor, chess, gameState]);
+  }, [playerColor, chessTurn, gameState, chessFen]);
 
   // Debug logging for state changes
   useEffect(() => {
     console.log("Chess state changed:", {
-      fen: chess.fen(),
-      turn: chess.turn(),
+      fen: chessFen,
+      turn: chessTurn,
       playerColor,
       gameStatus,
       isAITurn,
       isLoading,
     });
-  }, [chess.fen(), chess.turn(), playerColor, gameStatus, isAITurn, isLoading]);
+  }, [chessFen, chessTurn, playerColor, gameStatus, isAITurn, isLoading]);
 
-  const makeAIMoveWithFEN = async (fen: string) => {
-    if (new Chess(fen).isGameOver()) return;
+  const makeAIMoveWithFEN = useCallback(
+    async (fen: string) => {
+      if (new Chess(fen).isGameOver()) return;
 
-    console.log("=== AI MOVE WITH FEN START ===");
-    console.log("FEN provided to AI move:", fen);
-    console.log("Current turn from FEN:", new Chess(fen).turn());
-    console.log("Player color:", playerColor);
-    console.log(
-      "AI should play as:",
-      new Chess(fen).turn() === "w" ? "white" : "black",
-    );
+      console.log("=== AI MOVE WITH FEN START ===");
+      console.log("FEN provided to AI move:", fen);
+      console.log("Current turn from FEN:", new Chess(fen).turn());
+      console.log("Player color:", playerColor);
+      console.log(
+        "AI should play as:",
+        new Chess(fen).turn() === "w" ? "white" : "black",
+      );
 
-    setGameStatus("AI is thinking...");
-    setIsLoading(true);
-    setIsAITurn(true);
-
-    try {
-      setGameStatus("Making request to backend...");
-      const response = await fetch("/api/move", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fen: fen,
-          seed: seed,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to get AI move");
-      }
-
-      setGameStatus("Received response from backend, applying move...");
-      const data = await response.json();
-      const move = data.move;
-
-      console.log("AI move received:", move);
-      console.log("AI move data:", data);
-
-      // Make the AI move and update URL immediately
-      const newChess = new Chess(fen);
-      const result = newChess.move(move);
-
-      console.log("AI move result:", result);
-      console.log("New FEN after AI move:", newChess.fen());
-      console.log("New turn after AI move:", newChess.turn());
-      console.log("=== AI MOVE WITH FEN END ===");
-
-      // Update URL with new game state - this is now the source of truth
-      onGameStateUpdate(newChess.fen());
-
-      setGameStatus("AI move completed. Your turn!");
-    } catch (error) {
-      console.error("Error making AI move:", error);
-      setGameStatus("Error making AI move!");
-    } finally {
-      setIsLoading(false);
-      setIsAITurn(false);
-    }
-  };
-
-  const handleSquareClick = (square: string) => {
-    if (isLoading || isAITurn) return;
-
-    console.log("=== SQUARE CLICK ===");
-    console.log("Square clicked:", square);
-    console.log("Current turn:", chess.turn());
-    console.log("Player color:", playerColor);
-    console.log("Is player's turn:", chess.turn() === playerColor);
-
-    // Check if it's the player's turn
-    if (chess.turn() !== playerColor) {
-      console.log("NOT PLAYER'S TURN - blocking move");
-      setGameStatus("Not your turn! Wait for AI to move.");
-      return;
-    }
-
-    console.log("PLAYER'S TURN - allowing move");
-
-    const squarePiece = chess.get(square as Square) || null;
-    const isPlayerPiece = squarePiece && squarePiece.color === playerColor;
-
-    // If clicking on a player's piece
-    if (isPlayerPiece) {
-      if (selectedSquare === square) {
-        // Deselect if clicking the same piece
-        setSelectedSquare(null);
-        setGameStatus("Piece deselected. Your turn!");
-      } else {
-        // Select the new piece
-        setSelectedSquare(square);
-        setGameStatus(
-          `Selected ${squarePiece.type} at ${square}. Choose destination.`,
-        );
-      }
-      return;
-    }
-
-    // If a piece is selected and clicking on a different square
-    if (selectedSquare) {
-      const move = {
-        from: selectedSquare as Square,
-        to: square as Square,
-        promotion: "q" as const, // Always promote to queen for simplicity
-      };
+      setGameStatus("AI is thinking...");
+      setIsLoading(true);
+      setIsAITurn(true);
 
       try {
-        setGameStatus("Making your move...");
-        console.log("=== PLAYER MOVE START ===");
-        console.log("Current FEN before player move:", chess.fen());
-        console.log("Current turn before player move:", chess.turn());
-        console.log("Player color:", playerColor);
+        setGameStatus("Making request to backend...");
+        const response = await fetch("/api/move", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fen: fen,
+            seed: seed,
+          }),
+        });
 
-        const newChess = new Chess(chess.fen());
+        if (!response.ok) {
+          throw new Error("Failed to get AI move");
+        }
+
+        setGameStatus("Received response from backend, applying move...");
+        const data = await response.json();
+        const move = data.move;
+
+        console.log("AI move received:", move);
+        console.log("AI move data:", data);
+
+        // Make the AI move and update URL immediately
+        const newChess = new Chess(fen);
         const result = newChess.move(move);
 
-        if (result) {
-          console.log("Player move result:", result);
-          console.log("New FEN after player move:", newChess.fen());
-          console.log("New turn after player move:", newChess.turn());
-          console.log("=== PLAYER MOVE END ===");
+        console.log("AI move result:", result);
+        console.log("New FEN after AI move:", newChess.fen());
+        console.log("New turn after AI move:", newChess.turn());
+        console.log("=== AI MOVE WITH FEN END ===");
 
-          setSelectedSquare(null);
+        // Update URL with new game state - this is now the source of truth
+        onGameStateUpdate(newChess.fen());
 
-          setGameStatus("Your move completed. AI is thinking...");
-
-          // Update URL with new game state - this is the source of truth
-          onGameStateUpdate(newChess.fen());
-
-          // If game is not over, it's AI's turn
-          if (!newChess.isGameOver()) {
-            // Use the new FEN directly instead of relying on the chess instance
-            setTimeout(() => makeAIMoveWithFEN(newChess.fen()), 500);
-          } else {
-            setGameStatus("Game over!");
-          }
-        }
+        setGameStatus("AI move completed. Your turn!");
       } catch (error) {
-        console.error("Invalid move:", error);
-        setGameStatus("Invalid move! Try again.");
+        console.error("Error making AI move:", error);
+        setGameStatus("Error making AI move!");
+      } finally {
+        setIsLoading(false);
+        setIsAITurn(false);
       }
-    }
-  };
+    },
+    [seed, playerColor, onGameStateUpdate],
+  );
 
-  const isLegalMove = (square: string) => {
-    return legalMoves.some((move) => move.to === square);
-  };
+  const handleSquareClick = useCallback(
+    (square: string) => {
+      if (isLoading || isAITurn) return;
 
-  const getSquareColor = (file: number, rank: number) => {
+      console.log("=== SQUARE CLICK ===");
+      console.log("Square clicked:", square);
+      console.log("Current turn:", chessTurn);
+      console.log("Player color:", playerColor);
+      console.log("Is player's turn:", chessTurn === playerColor);
+
+      // Check if it's the player's turn
+      if (chessTurn !== playerColor) {
+        console.log("NOT PLAYER'S TURN - blocking move");
+        setGameStatus("Not your turn! Wait for AI to move.");
+        return;
+      }
+
+      console.log("PLAYER'S TURN - allowing move");
+
+      const squarePiece = chess.get(square as Square) || null;
+      const isPlayerPiece = squarePiece && squarePiece.color === playerColor;
+
+      // If clicking on a player's piece
+      if (isPlayerPiece) {
+        if (selectedSquare === square) {
+          // Deselect if clicking the same piece
+          setSelectedSquare(null);
+          setGameStatus("Piece deselected. Your turn!");
+        } else {
+          // Select the new piece
+          setSelectedSquare(square);
+          setGameStatus(
+            `Selected ${squarePiece.type} at ${square}. Choose destination.`,
+          );
+        }
+        return;
+      }
+
+      // If a piece is selected and clicking on a different square
+      if (selectedSquare) {
+        const move = {
+          from: selectedSquare as Square,
+          to: square as Square,
+          promotion: "q" as const, // Always promote to queen for simplicity
+        };
+
+        try {
+          setGameStatus("Making your move...");
+          console.log("=== PLAYER MOVE START ===");
+          console.log("Current FEN before player move:", chessFen);
+          console.log("Current turn before player move:", chessTurn);
+          console.log("Player color:", playerColor);
+
+          const newChess = new Chess(chessFen);
+          const result = newChess.move(move);
+
+          if (result) {
+            console.log("Player move result:", result);
+            console.log("New FEN after player move:", newChess.fen());
+            console.log("New turn after player move:", newChess.turn());
+            console.log("=== PLAYER MOVE END ===");
+
+            setSelectedSquare(null);
+
+            setGameStatus("Your move completed. AI is thinking...");
+
+            // Update URL with new game state - this is the source of truth
+            onGameStateUpdate(newChess.fen());
+
+            // If game is not over, it's AI's turn
+            if (!newChess.isGameOver()) {
+              // Use the new FEN directly instead of relying on the chess instance
+              setTimeout(() => makeAIMoveWithFEN(newChess.fen()), 500);
+            } else {
+              setGameStatus("Game over!");
+            }
+          }
+        } catch (error) {
+          console.error("Invalid move:", error);
+          setGameStatus("Invalid move! Try again.");
+        }
+      }
+    },
+    [
+      isLoading,
+      isAITurn,
+      chessTurn,
+      playerColor,
+      chess,
+      selectedSquare,
+      chessFen,
+      onGameStateUpdate,
+      makeAIMoveWithFEN,
+    ],
+  );
+
+  const isLegalMove = useCallback(
+    (square: string) => {
+      return legalMoves.some((move) => move.to === square);
+    },
+    [legalMoves],
+  );
+
+  const getSquareColor = useCallback((file: number, rank: number) => {
     return (file + rank) % 2 === 0 ? "bg-amber-100" : "bg-amber-800";
-  };
+  }, []);
 
-  const getSquareHighlight = (square: string) => {
-    if (selectedSquare === square) return "ring-4 ring-blue-500";
-    if (isLegalMove(square)) return "ring-2 ring-green-500";
-    return "";
-  };
+  const getSquareHighlight = useCallback(
+    (square: string) => {
+      if (selectedSquare === square) return "ring-4 ring-blue-500";
+      if (isLegalMove(square)) return "ring-2 ring-green-500";
+      return "";
+    },
+    [selectedSquare, isLegalMove],
+  );
 
-  const renderBoard = () => {
+  const renderBoard = useCallback(() => {
     const squares = [];
     const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
     const ranks = [8, 7, 6, 5, 4, 3, 2, 1];
@@ -263,20 +289,17 @@ export default function ChessBoard({
     }
 
     return squares;
-  };
+  }, [chess, getSquareColor, getSquareHighlight, handleSquareClick]);
 
   // Memoize the board rendering to prevent unnecessary re-renders
-  const memoizedBoard = useMemo(
-    () => renderBoard(),
-    [chess, selectedSquare, legalMoves],
-  );
+  const memoizedBoard = useMemo(() => renderBoard(), [renderBoard]);
 
-  const getGameStatus = () => {
+  const getGameStatus = useCallback(() => {
     if (chess.isCheckmate()) return "Checkmate!";
     if (chess.isDraw()) return "Draw!";
     if (chess.isCheck()) return "Check!";
     return gameStatus; // Use our detailed status instead
-  };
+  }, [chess, gameStatus]);
 
   return (
     <div className="flex flex-col items-center">
@@ -286,8 +309,8 @@ export default function ChessBoard({
           <div className="text-sm text-gray-600">Processing...</div>
         )}
         <div className="text-sm text-gray-500 mt-1">
-          Current turn: {chess.turn() === "w" ? "White" : "Black"} | Player
-          color: {playerColor === "w" ? "White" : "Black"}
+          Current turn: {chessTurn === "w" ? "White" : "Black"} | Player color:{" "}
+          {playerColor === "w" ? "White" : "Black"}
         </div>
       </div>
 
@@ -295,7 +318,7 @@ export default function ChessBoard({
         {memoizedBoard}
       </div>
 
-      <div className="mt-4 text-sm text-gray-600">{chess.fen()}</div>
+      <div className="mt-4 text-sm text-gray-600">{chessFen}</div>
     </div>
   );
 }
