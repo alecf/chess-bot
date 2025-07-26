@@ -2,6 +2,12 @@
 
 import ChessBoard from "@/components/ChessBoard";
 import ColorSelection from "@/components/ColorSelection";
+import {
+  getInitialBoardState,
+  parseBoardState,
+  serializeBoardState,
+  type BoardState,
+} from "@/utils/boardState";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -9,23 +15,34 @@ export default function GamePage() {
   const params = useParams();
   const router = useRouter();
   const seed = params.seed as string;
-  const gameState = params.gameState
+  const encodedGameState = params.gameState
     ? ((Array.isArray(params.gameState)
         ? params.gameState[0]
         : params.gameState) as string)
     : undefined;
 
-  // Decode the game state if it exists
-  const decodedGameState = gameState
-    ? decodeURIComponent(gameState)
+  // Decode URI and parse the board state
+  const decodedGameState = encodedGameState
+    ? decodeURIComponent(encodedGameState)
     : undefined;
+  const parsedBoardState = parseBoardState(decodedGameState);
 
-  const [playerColor, setPlayerColor] = useState<"w" | "b" | null>(null);
-  const [isGameStarted, setIsGameStarted] = useState(false);
+  const [playerColor, setPlayerColor] = useState<"w" | "b" | null>(
+    parsedBoardState?.playerColor || null,
+  );
+  const [isGameStarted, setIsGameStarted] = useState(!!parsedBoardState);
 
   // Update URL when game state changes
-  const updateGameState = (newGameState: string) => {
-    const encodedGameState = encodeURIComponent(newGameState);
+  const updateGameState = (newFen: string) => {
+    if (!playerColor) return;
+
+    const boardState: BoardState = {
+      playerColor,
+      fen: newFen,
+    };
+
+    const serializedState = serializeBoardState(boardState);
+    const encodedGameState = encodeURIComponent(serializedState);
     const newPath = `/game/${seed}/${encodedGameState}`;
     router.push(newPath);
   };
@@ -34,7 +51,13 @@ export default function GamePage() {
     setPlayerColor(color);
     setIsGameStarted(true);
 
-    // If player chooses white, they go first (no initial AI move)
+    // Set initial game state with player color
+    const boardState = getInitialBoardState(color);
+    const serializedState = serializeBoardState(boardState);
+    const encodedGameState = encodeURIComponent(serializedState);
+    const newPath = `/game/${seed}/${encodedGameState}`;
+    router.push(newPath);
+
     // If player chooses black, AI goes first
     if (color === "b") {
       // AI goes first, so we need to make an initial API call
@@ -64,7 +87,7 @@ export default function GamePage() {
         <ChessBoard
           seed={seed}
           playerColor={playerColor!}
-          gameState={decodedGameState}
+          gameState={parsedBoardState?.fen}
           onGameStateUpdate={updateGameState}
         />
       </div>

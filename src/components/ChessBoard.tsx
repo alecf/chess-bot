@@ -1,5 +1,6 @@
 "use client";
 
+import { isInitialPosition } from "@/utils/boardState";
 import { Chess, Move, Square } from "chess.js";
 import { useEffect, useState } from "react";
 import ChessSquare from "./ChessSquare";
@@ -39,8 +40,11 @@ export default function ChessBoard({
 
   // Handle AI going first (when player chooses black)
   useEffect(() => {
-    if (playerColor === "b" && chess.turn() === "w" && !gameState) {
-      makeAIMove();
+    if (playerColor === "b" && chess.turn() === "w" && gameState) {
+      // Check if this is the initial position (no moves made yet)
+      if (isInitialPosition(gameState)) {
+        makeAIMove();
+      }
     }
   }, [playerColor, chess, gameState]);
 
