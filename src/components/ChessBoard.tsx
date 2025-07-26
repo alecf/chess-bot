@@ -217,8 +217,8 @@ export default function ChessBoard({
 
   const getSquareHighlight = useCallback(
     (square: string) => {
-      if (selectedSquare === square) return "ring-4 ring-blue-500";
-      if (isLegalMove(square)) return "ring-2 ring-green-500";
+      if (selectedSquare === square) return "border-4 border-blue-500";
+      if (isLegalMove(square)) return "border-2 border-green-500";
       return "";
     },
     [selectedSquare, isLegalMove],
@@ -291,7 +291,7 @@ export default function ChessBoard({
         </div>
       </div>
 
-      <div className="grid grid-cols-8 w-96 h-96 border-4 border-gray-800 rounded-lg overflow-hidden">
+      <div className="grid grid-cols-8 w-96 h-96 border-4 border-gray-800 rounded-lg">
         {memoizedBoard}
       </div>
 
