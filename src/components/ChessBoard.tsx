@@ -1,8 +1,8 @@
 "use client";
 
 import { isInitialPosition } from "@/utils/boardState";
-import { Chess, Move, Square } from "chess.js";
-import { useEffect, useState } from "react";
+import { Chess, Square } from "chess.js";
+import { useEffect, useMemo, useState } from "react";
 import ChessSquare from "./ChessSquare";
 
 interface ChessBoardProps {
@@ -18,38 +18,42 @@ export default function ChessBoard({
   gameState,
   onGameStateUpdate,
 }: ChessBoardProps) {
-  const [chess, setChess] = useState<Chess>(new Chess());
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
-  const [legalMoves, setLegalMoves] = useState<Move[]>([]);
   const [isAITurn, setIsAITurn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [gameStatus, setGameStatus] = useState<string>(
     "Waiting for game to start...",
   );
 
-  // Initialize game from URL state if provided
-  useEffect(() => {
-    if (gameState) {
-      try {
-        const newChess = new Chess();
-        newChess.load(gameState);
-        setChess(newChess);
-        updateLegalMoves(newChess);
-
-        // Set initial status based on whose turn it is
-        if (newChess.turn() === playerColor) {
-          setGameStatus("Your turn! Select a piece to move.");
-        } else {
-          setGameStatus("AI's turn. Please wait...");
-        }
-      } catch (error) {
-        console.error("Failed to load game state:", error);
-        setGameStatus("Error loading game state!");
-      }
-    } else {
-      setGameStatus("Game initialized. Your turn!");
+  // Create chess instance from URL state using useMemo
+  const chess = useMemo(() => {
+    if (!gameState) {
+      return new Chess();
     }
-  }, [gameState, playerColor]);
+
+    try {
+      const newChess = new Chess();
+      newChess.load(gameState);
+      return newChess;
+    } catch (error) {
+      console.error("Failed to load game state:", error);
+      return new Chess();
+    }
+  }, [gameState]);
+
+  // Calculate legal moves using useMemo
+  const legalMoves = useMemo(() => {
+    return chess.moves({ verbose: true });
+  }, [chess]);
+
+  // Initialize game status when chess instance changes
+  useEffect(() => {
+    if (chess.turn() === playerColor) {
+      setGameStatus("Your turn! Select a piece to move.");
+    } else {
+      setGameStatus("AI's turn. Please wait...");
+    }
+  }, [chess, playerColor]);
 
   // Handle AI going first (when player chooses black)
   useEffect(() => {
@@ -73,11 +77,6 @@ export default function ChessBoard({
       isLoading,
     });
   }, [chess.fen(), chess.turn(), playerColor, gameStatus, isAITurn, isLoading]);
-
-  const updateLegalMoves = (chessInstance: Chess) => {
-    const moves = chessInstance.moves({ verbose: true });
-    setLegalMoves(moves);
-  };
 
   const makeAIMove = async () => {
     if (chess.isGameOver()) return;
@@ -107,17 +106,15 @@ export default function ChessBoard({
       const data = await response.json();
       const move = data.move;
 
-      // Make the AI move
+      // Make the AI move and update URL immediately
       const newChess = new Chess(chess.fen());
       const result = newChess.move(move);
 
-      setChess(newChess);
-      updateLegalMoves(newChess);
+      // Update URL with new game state - this is now the source of truth
+      // The chess instance will be recreated from the URL on the next render
+      onGameStateUpdate(newChess.fen());
 
       setGameStatus("AI move completed. Your turn!");
-
-      // Don't update URL here - only update when player makes a move
-      // This prevents race conditions with the URL-based state management
     } catch (error) {
       console.error("Error making AI move:", error);
       setGameStatus("Error making AI move!");
@@ -169,13 +166,11 @@ export default function ChessBoard({
         const result = newChess.move(move);
 
         if (result) {
-          setChess(newChess);
-          updateLegalMoves(newChess);
           setSelectedSquare(null);
 
           setGameStatus("Your move completed. AI is thinking...");
 
-          // Update URL with new game state
+          // Update URL with new game state - this is the source of truth
           onGameStateUpdate(newChess.fen());
 
           // If game is not over, it's AI's turn
@@ -234,6 +229,12 @@ export default function ChessBoard({
     return squares;
   };
 
+  // Memoize the board rendering to prevent unnecessary re-renders
+  const memoizedBoard = useMemo(
+    () => renderBoard(),
+    [chess, selectedSquare, legalMoves],
+  );
+
   const getGameStatus = () => {
     if (chess.isCheckmate()) return "Checkmate!";
     if (chess.isDraw()) return "Draw!";
@@ -255,7 +256,7 @@ export default function ChessBoard({
       </div>
 
       <div className="grid grid-cols-8 w-96 h-96 border-4 border-gray-800 rounded-lg overflow-hidden">
-        {renderBoard()}
+        {memoizedBoard}
       </div>
 
       <div className="mt-4 text-sm text-gray-600">{chess.fen()}</div>
