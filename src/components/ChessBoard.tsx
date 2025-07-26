@@ -23,6 +23,9 @@ export default function ChessBoard({
   const [legalMoves, setLegalMoves] = useState<Move[]>([]);
   const [isAITurn, setIsAITurn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [gameStatus, setGameStatus] = useState<string>(
+    "Waiting for game to start...",
+  );
 
   // Initialize game from URL state if provided
   useEffect(() => {
@@ -32,21 +35,44 @@ export default function ChessBoard({
         newChess.load(gameState);
         setChess(newChess);
         updateLegalMoves(newChess);
+
+        // Set initial status based on whose turn it is
+        if (newChess.turn() === playerColor) {
+          setGameStatus("Your turn! Select a piece to move.");
+        } else {
+          setGameStatus("AI's turn. Please wait...");
+        }
       } catch (error) {
         console.error("Failed to load game state:", error);
+        setGameStatus("Error loading game state!");
       }
+    } else {
+      setGameStatus("Game initialized. Your turn!");
     }
-  }, [gameState]);
+  }, [gameState, playerColor]);
 
   // Handle AI going first (when player chooses black)
   useEffect(() => {
     if (playerColor === "b" && chess.turn() === "w" && gameState) {
       // Check if this is the initial position (no moves made yet)
       if (isInitialPosition(gameState)) {
+        setGameStatus("AI goes first. Starting AI move...");
         makeAIMove();
       }
     }
   }, [playerColor, chess, gameState]);
+
+  // Debug logging for state changes
+  useEffect(() => {
+    console.log("Chess state changed:", {
+      fen: chess.fen(),
+      turn: chess.turn(),
+      playerColor,
+      gameStatus,
+      isAITurn,
+      isLoading,
+    });
+  }, [chess.fen(), chess.turn(), playerColor, gameStatus, isAITurn, isLoading]);
 
   const updateLegalMoves = (chessInstance: Chess) => {
     const moves = chessInstance.moves({ verbose: true });
@@ -56,10 +82,12 @@ export default function ChessBoard({
   const makeAIMove = async () => {
     if (chess.isGameOver()) return;
 
+    setGameStatus("AI is thinking...");
     setIsLoading(true);
     setIsAITurn(true);
 
     try {
+      setGameStatus("Making request to backend...");
       const response = await fetch("/api/move", {
         method: "POST",
         headers: {
@@ -75,19 +103,24 @@ export default function ChessBoard({
         throw new Error("Failed to get AI move");
       }
 
+      setGameStatus("Received response from backend, applying move...");
       const data = await response.json();
       const move = data.move;
 
       // Make the AI move
       const newChess = new Chess(chess.fen());
-      newChess.move(move);
+      const result = newChess.move(move);
+
       setChess(newChess);
       updateLegalMoves(newChess);
 
-      // Update URL with new game state
-      onGameStateUpdate(newChess.fen());
+      setGameStatus("AI move completed. Your turn!");
+
+      // Don't update URL here - only update when player makes a move
+      // This prevents race conditions with the URL-based state management
     } catch (error) {
       console.error("Error making AI move:", error);
+      setGameStatus("Error making AI move!");
     } finally {
       setIsLoading(false);
       setIsAITurn(false);
@@ -97,6 +130,12 @@ export default function ChessBoard({
   const handleSquareClick = (square: string) => {
     if (isLoading || isAITurn) return;
 
+    // Check if it's the player's turn
+    if (chess.turn() !== playerColor) {
+      setGameStatus("Not your turn! Wait for AI to move.");
+      return;
+    }
+
     const squarePiece = chess.get(square as Square) || null;
     const isPlayerPiece = squarePiece && squarePiece.color === playerColor;
 
@@ -105,9 +144,13 @@ export default function ChessBoard({
       if (selectedSquare === square) {
         // Deselect if clicking the same piece
         setSelectedSquare(null);
+        setGameStatus("Piece deselected. Your turn!");
       } else {
         // Select the new piece
         setSelectedSquare(square);
+        setGameStatus(
+          `Selected ${squarePiece.type} at ${square}. Choose destination.`,
+        );
       }
       return;
     }
@@ -121,6 +164,7 @@ export default function ChessBoard({
       };
 
       try {
+        setGameStatus("Making your move...");
         const newChess = new Chess(chess.fen());
         const result = newChess.move(move);
 
@@ -129,16 +173,21 @@ export default function ChessBoard({
           updateLegalMoves(newChess);
           setSelectedSquare(null);
 
+          setGameStatus("Your move completed. AI is thinking...");
+
           // Update URL with new game state
           onGameStateUpdate(newChess.fen());
 
           // If game is not over, it's AI's turn
           if (!newChess.isGameOver()) {
             setTimeout(() => makeAIMove(), 500); // Small delay for better UX
+          } else {
+            setGameStatus("Game over!");
           }
         }
       } catch (error) {
         console.error("Invalid move:", error);
+        setGameStatus("Invalid move! Try again.");
       }
     }
   };
@@ -189,9 +238,7 @@ export default function ChessBoard({
     if (chess.isCheckmate()) return "Checkmate!";
     if (chess.isDraw()) return "Draw!";
     if (chess.isCheck()) return "Check!";
-    if (isAITurn) return "AI is thinking...";
-    if (chess.turn() === playerColor) return "Your turn";
-    return "AI turn";
+    return gameStatus; // Use our detailed status instead
   };
 
   return (
@@ -199,8 +246,12 @@ export default function ChessBoard({
       <div className="mb-4 text-center">
         <div className="text-xl font-semibold mb-2">{getGameStatus()}</div>
         {isLoading && (
-          <div className="text-sm text-gray-600">AI is calculating...</div>
+          <div className="text-sm text-gray-600">Processing...</div>
         )}
+        <div className="text-sm text-gray-500 mt-1">
+          Current turn: {chess.turn() === "w" ? "White" : "Black"} | Player
+          color: {playerColor === "w" ? "White" : "Black"}
+        </div>
       </div>
 
       <div className="grid grid-cols-8 w-96 h-96 border-4 border-gray-800 rounded-lg overflow-hidden">
