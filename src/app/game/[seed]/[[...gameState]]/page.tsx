@@ -8,18 +8,15 @@ import {
   serializeBoardState,
   type BoardState,
 } from "@/utils/boardState";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 export default function GamePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const seed = params.seed as string;
-  const encodedGameState = params.gameState
-    ? ((Array.isArray(params.gameState)
-        ? params.gameState[0]
-        : params.gameState) as string)
-    : undefined;
+  const encodedGameState = searchParams.get("state");
 
   // Decode URI and parse the board state
   const decodedGameState = encodedGameState
@@ -43,7 +40,7 @@ export default function GamePage() {
 
     const serializedState = serializeBoardState(boardState);
     const encodedGameState = encodeURIComponent(serializedState);
-    const newPath = `/game/${seed}/${encodedGameState}`;
+    const newPath = `/game/${seed}?state=${encodedGameState}`;
     router.push(newPath);
   };
 
@@ -55,7 +52,7 @@ export default function GamePage() {
     const boardState = getInitialBoardState(color);
     const serializedState = serializeBoardState(boardState);
     const encodedGameState = encodeURIComponent(serializedState);
-    const newPath = `/game/${seed}/${encodedGameState}`;
+    const newPath = `/game/${seed}?state=${encodedGameState}`;
     router.push(newPath);
 
     // If player chooses black, AI goes first

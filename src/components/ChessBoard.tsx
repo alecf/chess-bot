@@ -29,6 +29,14 @@ export default function ChessBoard({
   const [invalidMoveMessage, setInvalidMoveMessage] = useState<string | null>(
     null,
   );
+  const [playerLastMove, setPlayerLastMove] = useState<{
+    from: string;
+    to: string;
+  } | null>(null);
+  const [aiLastMove, setAILastMove] = useState<{
+    from: string;
+    to: string;
+  } | null>(null);
 
   // Create chess instance from URL state using useMemo
   const chess = useMemo(() => {
@@ -89,6 +97,21 @@ export default function ChessBoard({
         // Update URL with new game state - this is now the source of truth
         onGameStateUpdate(newChess.fen());
 
+        // Set the last move for highlighting
+        // Parse UCI move format (e.g., "e2e4" -> from: "e2", to: "e4")
+        const from = move.substring(0, 2);
+        const to = move.substring(2, 4);
+        console.log("AI move:", { from, to, move });
+        const lastMoveData = { from, to };
+        console.log("Setting AI lastMove to:", lastMoveData);
+        setAILastMove(lastMoveData);
+
+        // Clear the highlight after 3 seconds
+        setTimeout(() => {
+          console.log("Clearing aiLastMove after timeout");
+          setAILastMove(null);
+        }, 3000);
+
         setGameStatus("AI move completed. Your turn!");
       } catch (error) {
         console.error("Error making AI move:", error);
@@ -98,7 +121,7 @@ export default function ChessBoard({
         setIsAITurn(false);
       }
     },
-    [seed, playerColor, onGameStateUpdate],
+    [seed, onGameStateUpdate],
   );
 
   // Initialize game status when chess instance changes
@@ -172,6 +195,17 @@ export default function ChessBoard({
             // Update URL with new game state - this is the source of truth
             onGameStateUpdate(newChess.fen());
 
+            // Set the last move for highlighting
+            const playerLastMoveData = { from: selectedSquare, to: square };
+            console.log("Player move:", playerLastMoveData);
+            setPlayerLastMove(playerLastMoveData);
+
+            // Clear the highlight after 3 seconds
+            setTimeout(() => {
+              console.log("Clearing playerLastMove after timeout");
+              setPlayerLastMove(null);
+            }, 3000);
+
             // If game is not over, it's AI's turn
             if (!newChess.isGameOver()) {
               // Use the new FEN directly instead of relying on the chess instance
@@ -217,11 +251,47 @@ export default function ChessBoard({
 
   const getSquareHighlight = useCallback(
     (square: string) => {
-      if (selectedSquare === square) return "border-4 border-blue-500";
-      if (isLegalMove(square)) return "border-2 border-green-500";
+      console.log(`Checking highlight for square ${square}:`, {
+        selectedSquare,
+        playerLastMove,
+        aiLastMove,
+        isLegalMove: isLegalMove(square),
+      });
+
+      if (selectedSquare === square) {
+        console.log(`Square ${square}: Selected piece - blue border`);
+        return "border-4 border-blue-500";
+      }
+
+      if (
+        playerLastMove &&
+        (playerLastMove.from === square || playerLastMove.to === square)
+      ) {
+        console.log(
+          "Highlighting player last move square:",
+          square,
+          playerLastMove,
+        );
+        return "!border-4 !border-yellow-500 !bg-yellow-100";
+      }
+
+      if (
+        aiLastMove &&
+        (aiLastMove.from === square || aiLastMove.to === square)
+      ) {
+        console.log("Highlighting AI last move square:", square, aiLastMove);
+        return "!border-4 !border-yellow-500 !bg-yellow-100";
+      }
+
+      if (isLegalMove(square)) {
+        console.log(`Square ${square}: Legal move - green border`);
+        return "border-2 border-green-500";
+      }
+
+      console.log(`Square ${square}: No highlight`);
       return "";
     },
-    [selectedSquare, isLegalMove],
+    [selectedSquare, isLegalMove, playerLastMove, aiLastMove],
   );
 
   const renderBoard = useCallback(() => {
@@ -235,6 +305,11 @@ export default function ChessBoard({
         const piece = chess.get(square as Square) || null;
         const squareColor = getSquareColor(file, rank);
         const highlight = getSquareHighlight(square);
+
+        // Debug: Log the highlight for specific squares
+        if (highlight) {
+          console.log(`Square ${square} highlight: "${highlight}"`);
+        }
 
         squares.push(
           <ChessSquare
@@ -275,7 +350,29 @@ export default function ChessBoard({
 
   return (
     <div className="flex flex-col items-center">
-      <div className="mb-4 text-center">
+      {/* Navigation buttons at the top - never change */}
+      <div className="mb-6 flex gap-4">
+        <button
+          onClick={handleGoHome}
+          className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+        >
+          Back to Home
+        </button>
+        <button
+          onClick={handleResetGame}
+          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+        >
+          New Game
+        </button>
+      </div>
+
+      {/* Chess board - main content */}
+      <div className="grid grid-cols-8 w-96 h-96 border-4 border-gray-800 rounded-lg">
+        {memoizedBoard}
+      </div>
+
+      {/* Status and info below the board */}
+      <div className="mt-4 text-center">
         <div className="text-xl font-semibold mb-2">{getGameStatus()}</div>
         {isLoading && (
           <div className="text-sm text-gray-600">Processing...</div>
@@ -289,27 +386,7 @@ export default function ChessBoard({
           Current turn: {chessTurn === "w" ? "White" : "Black"} | Player color:{" "}
           {playerColor === "w" ? "White" : "Black"}
         </div>
-      </div>
-
-      <div className="grid grid-cols-8 w-96 h-96 border-4 border-gray-800 rounded-lg">
-        {memoizedBoard}
-      </div>
-
-      <div className="mt-4 text-sm text-gray-600">{chessFen}</div>
-
-      <div className="mt-6 flex gap-4">
-        <button
-          onClick={handleGoHome}
-          className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
-        >
-          Back to Home
-        </button>
-        <button
-          onClick={handleResetGame}
-          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-        >
-          New Game
-        </button>
+        <div className="text-sm text-gray-600 mt-2">{chessFen}</div>
       </div>
     </div>
   );

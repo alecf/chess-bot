@@ -36,6 +36,9 @@ export default function ChessSquare({
   highlight,
   onClick,
 }: ChessSquareProps) {
+  // Debug: Log the highlight prop
+  console.log(`ChessSquare ${square} received highlight: "${highlight}"`);
+
   const getPieceIcon = () => {
     if (!piece) return null;
     return pieceIcons[piece.color][piece.type];
