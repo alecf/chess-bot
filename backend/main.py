@@ -1,5 +1,4 @@
 import random
-from typing import Optional
 
 import chess
 from fastapi import FastAPI, HTTPException
@@ -72,9 +71,16 @@ async def get_next_move(chess_state: ChessState):
         return MoveResponse(move=chosen_move.uci(), san=san_move, piece=piece_name)
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid FEN string: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid FEN string: {str(e)}"
+        ) from e
+    except HTTPException:
+        # Re-raise HTTPExceptions without wrapping them
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing move: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error processing move: {str(e)}"
+        ) from e
 
 
 @app.get("/new-game")
