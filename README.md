@@ -15,8 +15,8 @@ A chess game with AI opponent built with Next.js frontend and FastAPI backend.
 
 ### Prerequisites
 
-- Node.js 18+
-- Python 3.8+
+- Node.js 20.9+
+- Python 3.13+
 - uv (Python package manager)
 
 ### Installation
