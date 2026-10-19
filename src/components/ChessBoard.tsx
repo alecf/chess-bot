@@ -92,7 +92,7 @@ export default function ChessBoard({
 
         // Make the AI move and update URL immediately
         const newChess = new Chess(fen);
-        const result = newChess.move(move);
+        newChess.move(move);
 
         // Update URL with new game state - this is now the source of truth
         onGameStateUpdate(newChess.fen());

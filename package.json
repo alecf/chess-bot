@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "dev:full": "./start-dev.sh",
     "backend": "cd backend && uv run python main.py",
     "backend:dev": "cd backend && uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000"
@@ -15,18 +15,17 @@
     "@types/chess.js": "^0.13.7",
     "chess.js": "^1.4.0",
     "lucide-react": "^0.525.0",
-    "next": "16.3.1",
+    "next": "16.4.2",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.4.4",
+    "eslint-config-next": "16.4.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
